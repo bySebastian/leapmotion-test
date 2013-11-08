@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leap motion - Count fingers</title>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+	<button onclick="controller.connect">Count fingers (Connect Controller)</button>
+	<script src="http://js.leapmotion.com/0.2.0/leap.min.js"></script>
+	<script>
+		var canvas = document.getElementById('canvas');
+		var width = canvas.width;
+		var height = canvas.height;
+		var c = canvas.getContext('2d');
+		var controller = new Leap.Controller();
+		//
+		// frame types:
+		// - frame
+		// - animationFrame = a type of frame done by the browser. Let the browser do the hard work of timing callbacks.
+		// - deviceFrame = it's called everytime the device gets a new frame. (Every single frame that the device sees.)
+		controller.on('frame',function(frame)
+		{
+			// frame code goes here
+			var numberOfFingers = frame.fingers.length;
+			// defines the font shape, size and position
+			c.font = '30px Arial';
+			c.textAlign = 'center';
+			c.textBaseline = 'middle';
+			// tell canvas to draw the input at the position defined
+			c.fillText(numberOfFingers, width/2, height/2);
+			// clear the canvas every single frame, and redraw the number every single frame
+			// this should be put at the VERY beginning of every frame
+			c.clearRect(0, 0, width, height);
+		});
+		//
+		// OR we passed the frame when we create the controller
+		//var controller = new Leap.Controller({frameEventName: 'deviceFrame'});
+	</script>
+</body>
+</html>
