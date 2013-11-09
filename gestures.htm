@@ -7,7 +7,218 @@
 	<canvas id="canvas"></canvas>
 	<script scr="http://js.leapmotion.com/0.2.0/leap.min.js"></script>
 	<script>
+		var canvas = document.getElementById('canvas');
+		var c = canvas.getContext('2d');
+		var width = canvas.width;
+		var height = canvas.height;
+		var frame;
+		var keyTaps = [];
+		var KEYTAP_LIFETIME = 3;
+		var KEYTAP_START_SIZE = 15;
+		var screenTaps = [];
+		var SCREENTAP_LIFETIME = 4;
+		var SCREENTAP_START_SIZE = 15;
+		var controller = new Leap.Controller({enableGestures:true});
+		controller.on('frame',function(data)
+		{
+			frame = data;
+			c.clearRect(0,0,width,height);
+			//
+			for(var i=0; i<frame.gestures.length; i++)
+			{
+				var gesture = frame.gestures[i];
+				// per gesture code goes here
+				var type = gesture.type;
+				switch(type)
+				{
+					case 'circle':
+						onCircle(gesture);
+						break;
+					case 'swipe':
+						onSwipe(gesture);
+						break;
+					case 'screenTap':
+						onScreenTap(gesture);
+						break;
+					case 'keyTap':
+						onKeyTap(gesture);
+						break;
+				}
+			}
+			//
+			updateKeyTaps();
+			drawKeyTaps();
+		});
+		controller.connect();
+		//
+		function onCircle(gesture)
+		{
+			// first get our position using the leapToScene function
+			var pos = leapToScene(gesture.center);
+			// assigning te radius
+			var r = gesture.radius;
+			//
+			var clockwise = false;
+			if(gesture.normal[2]<=0)
+			{
+				clockwise = true;
+			}
+			// setting up the style for the stroke and fill
+			c.fillStyle = '#39AECF';
+			c.strokeStyle = '#39AECF';
+			c.lineWidth = 5;
+			// creating the path for the finger circle
+			c.beginPath();
+			c.arc(pos[0],pos[1],radius,0,Math.PI*2);
+			c.closePath();
+			if(clockwise)
+			{
+				c.stroke();
+			}
+			else
+			{
+				c.fill();
+			}
+		}
+		//
+		function onSwipe(gesture)
+		{
+			var startPos = leapToScene(gesture.startPosition);
+			var pos = leapToScene(gesture.position);
+			//
+			// settings up the style for the stroke
+			c.strokeStyle = '#FFA040';
+			c.lineWidth = 3;
+			// drawing the path
+			c.beginPath();
+			c.moveTo(startPos[0],startPos[1]);
+			c.lineTo(pos[0],pos[1]);
+			c.closePath();
+			c.stroke();
+		}
+		//
+		function onKeyTap(gesture)
+		{
+			var pos = leapToScene(gesture.position);
+			var time = frame.timestamp;
+			keyTaps.push([pos[0],pos[1],time]);
+		}
+		//
+		function onScreenTap(gesture)
+		{
+			var pos = leapToScene(gesture.position);
+			var time = frame.timestamp;
+			screenTaps.push([pos[0],pos[1],time]);
+		}
+		//
+		function drawKeyTaps()
+		{
+			for(var i=0; i<keyTaps.length; i++)
+			{
+				var keyTap = keyTaps[i];
+				var age = (frame.timestamp - keyTap[2])/1000000;
+				var x = keyTap[0];
+				var y = keyTap[1];
+				// drawing code will go here
+				var completion = age/KEYTAP_LIFETIME;
+				var timeleft = 1 - completion;
+				//
+				c.strokeStyle = '#FF2300';
+				c.lineWidth = 3;
+				c.beginPath();
+				c.arc(x,y,KEYTAP_START_SIZE,0,Math.PI*2);
+				c.closePath();
+				c.stroke();
+				//
+				var opacity = timeleft;
+				var radius = KEYTAP_START_SIZE*timeleft;
+				c.fillStyle = 'rgba(256,33,0,'+opacity+')';
+				// creating the path for the finger circle
+				c.beginPath();
+				c.arc(x,y,radius,0,Math.PI*2);
+				c.closePath();
+				c.fill();
+			}
+		}
+		//
+		function updateKeyTaps()
+		{
+			for(var i=0; i<keyTaps.length; i++)
+			{
+				var keyTap = keyTaps[i];
+				var age = (frame.timestamp-keyTap[i][2])/1000000;
+				if(age>=KEYTAP_LIFETIME)
+				{
+					keyTaps.splice(i,1);
+				}
+			}
+		}
+		//
+		function updateScreenTaps()
+		{
+			for(var i=0; i<screenTaps.length; i++)
+			{
+				var screenTap = screenTaps[i];
+				var age = (frame.timestamp-screenTap[i][2])/1000000;
+				if(age>=SCREENTAP_LIFETIME)
+				{
+					screentaps.splice(i,1);
+				}
+			}
+		}
+		//
+		function drawScreenTaps()
+		{
+			for(var i=0; screenTaps.length; i++)
+			{
+				var screenTap = screenTaps[i];
+				var x = screenTap[0];
+				var y = screenTap[1];
+				var age = (frame.timestamp-screenTap[2])/1000000;
+				var completion = age/SCREENTAP_LIFETIME;
+				var timeleft = 1 - completion;
+				var size = SCREENTAP_START_SIZE*timeleft;
+				var opacity = timeleft;
+				var rotation = timeleft*Math.PI;
+				// drawing function will go here
+				c.fillStyle = 'rgba(255,179,0,'+opacity+')';
+				// save the canvas context, so that we can restore it
+				// and have it unaffacted
+				c.save();
+				// translate the context and rotate arount the center of the square
+				c.translate(x,y);
+				c.rotate(rotation);
+				// starting x and y
+				var left = -size/2;
+				var top = -size/2;
+				var width = size;
+				var height = size;
 
+				// draw the rectangle
+				c.fillRect(left,top,width,height);
+				// restore the context, so we don't draw everything rotated
+				c.restore();
+			}
+		}
+		//
+		function leapToScene(leapPos)
+		{
+			var iBox = frame.interactionBox;
+			//
+			var left = iBox.center[0]-iBox.size[0]/2;
+			var top = iBox.center[1]-iBox.size[1]/2;
+			//
+			var x = leapPos[0]-left;
+			var y = leapPos[1]-top;
+			//
+			x /= iBox.size[0];
+			y /= iBox.size[1];
+			//
+			x *= width;
+			x *= height;
+			//
+			return [x,-y];
+		}
 	</script
 </body>
 </html>
